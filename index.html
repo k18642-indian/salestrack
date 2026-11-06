@@ -385,12 +385,6 @@
                                 <option value="">Select a sales person first...</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-                            <select id="select-customer" required class="w-full rounded-lg border-gray-300 border p-2.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white">
-                                <option value="">Select customer...</option>
-                            </select>
-                        </div>
                     </div>
 
                     <div class="border-t border-gray-100 pt-5">
@@ -963,26 +957,44 @@ service cloud.firestore {
             if(filteredCustomers.find(c => c.id === currCust)) selCust.value = currCust;
         };
 
+        const handleWriteError = (error) => {
+            if (error.code === 'permission-denied' || (error.message && error.message.toLowerCase().includes('permission'))) {
+                console.warn("Firestore rules are currently locked. Displaying setup instructions.");
+                document.getElementById('db-rules-overlay').classList.remove('hidden');
+            } else {
+                console.error("Firestore write error:", error);
+                window.showToast("Action failed: " + error.message, "error");
+            }
+        };
+
         // Data Management (Cloud + Offline Fallback)
         window.deleteSale = async function(docId) {
-            if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sales', docId));
-            else { salesData = salesData.filter(s => s.id !== docId); window.processAndRenderData(); }
-            window.showToast("Sale record deleted");
+            try {
+                if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'sales', docId));
+                else { salesData = salesData.filter(s => s.id !== docId); window.processAndRenderData(); }
+                window.showToast("Sale record deleted");
+            } catch (error) { handleWriteError(error); }
         };
         window.deleteProduct = async function(docId) {
-            if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', docId));
-            else { productsData = productsData.filter(p => p.id !== docId); window.renderDatabases(); }
-            window.showToast("Product deleted");
+            try {
+                if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', docId));
+                else { productsData = productsData.filter(p => p.id !== docId); window.renderDatabases(); }
+                window.showToast("Product deleted");
+            } catch (error) { handleWriteError(error); }
         };
         window.deleteCustomer = async function(docId) {
-            if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', docId));
-            else { customersData = customersData.filter(c => c.id !== docId); window.renderDatabases(); }
-            window.showToast("Customer deleted");
+            try {
+                if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', docId));
+                else { customersData = customersData.filter(c => c.id !== docId); window.renderDatabases(); }
+                window.showToast("Customer deleted");
+            } catch (error) { handleWriteError(error); }
         };
         window.deleteSalesRep = async function(docId) {
-            if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'team', docId));
-            else { teamData = teamData.filter(t => t.id !== docId); window.renderDatabases(); }
-            window.showToast("Sales person deleted");
+            try {
+                if (db) await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'team', docId));
+                else { teamData = teamData.filter(t => t.id !== docId); window.renderDatabases(); }
+                window.showToast("Sales person deleted");
+            } catch (error) { handleWriteError(error); }
         };
 
         window.editProduct = function(id) {
@@ -1024,109 +1036,117 @@ service cloud.firestore {
         // Form Submit Listeners
         document.getElementById('form-product').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const payload = {
-                name: document.getElementById('prod-name').value.trim(),
-                cost: parseFloat(document.getElementById('prod-cost').value),
-                price: parseFloat(document.getElementById('prod-price').value),
-                createdAt: new Date().toISOString()
-            };
-            if (editingProductId) {
-                if(db) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', editingProductId), payload);
-                else { const idx = productsData.findIndex(p => p.id === editingProductId); if(idx > -1) productsData[idx] = { ...productsData[idx], ...payload, id: editingProductId }; window.renderDatabases(); }
-                window.showToast("Product updated!");
-                window.cancelEditProduct();
-            } else {
-                if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'products'), payload);
-                else { payload.id = 'prod_' + Math.random().toString(36).substr(2, 9); productsData.push(payload); window.renderDatabases(); }
-                document.getElementById('form-product').reset();
-                window.showToast("Product added to database!");
-            }
+            try {
+                const payload = {
+                    name: document.getElementById('prod-name').value.trim(),
+                    cost: parseFloat(document.getElementById('prod-cost').value),
+                    price: parseFloat(document.getElementById('prod-price').value),
+                    createdAt: new Date().toISOString()
+                };
+                if (editingProductId) {
+                    if(db) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'products', editingProductId), payload);
+                    else { const idx = productsData.findIndex(p => p.id === editingProductId); if(idx > -1) productsData[idx] = { ...productsData[idx], ...payload, id: editingProductId }; window.renderDatabases(); }
+                    window.showToast("Product updated!");
+                    window.cancelEditProduct();
+                } else {
+                    if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'products'), payload);
+                    else { payload.id = 'prod_' + Math.random().toString(36).substr(2, 9); productsData.push(payload); window.renderDatabases(); }
+                    document.getElementById('form-product').reset();
+                    window.showToast("Product added to database!");
+                }
+            } catch (error) { handleWriteError(error); }
         });
 
         document.getElementById('form-customer').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const teamSelect = document.getElementById('cust-salesperson');
-            const payload = {
-                name: document.getElementById('cust-name').value.trim(),
-                contact: document.getElementById('cust-contact').value.trim(),
-                salesPersonId: teamSelect.value,
-                salesPersonName: teamSelect.options[teamSelect.selectedIndex].text,
-                createdAt: new Date().toISOString()
-            };
-            if (editingCustomerId) {
-                if(db) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingCustomerId), payload);
-                else { const idx = customersData.findIndex(c => c.id === editingCustomerId); if(idx > -1) customersData[idx] = { ...customersData[idx], ...payload, id: editingCustomerId }; window.renderDatabases(); }
-                window.showToast("Customer updated!");
-                window.cancelEditCustomer();
-            } else {
-                if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), payload);
-                else { payload.id = 'cust_' + Math.random().toString(36).substr(2, 9); customersData.push(payload); window.renderDatabases(); }
-                document.getElementById('form-customer').reset();
-                window.showToast("Customer added to database!");
-            }
+            try {
+                const teamSelect = document.getElementById('cust-salesperson');
+                const payload = {
+                    name: document.getElementById('cust-name').value.trim(),
+                    contact: document.getElementById('cust-contact').value.trim(),
+                    salesPersonId: teamSelect.value,
+                    salesPersonName: teamSelect.options[teamSelect.selectedIndex].text,
+                    createdAt: new Date().toISOString()
+                };
+                if (editingCustomerId) {
+                    if(db) await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'customers', editingCustomerId), payload);
+                    else { const idx = customersData.findIndex(c => c.id === editingCustomerId); if(idx > -1) customersData[idx] = { ...customersData[idx], ...payload, id: editingCustomerId }; window.renderDatabases(); }
+                    window.showToast("Customer updated!");
+                    window.cancelEditCustomer();
+                } else {
+                    if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'customers'), payload);
+                    else { payload.id = 'cust_' + Math.random().toString(36).substr(2, 9); customersData.push(payload); window.renderDatabases(); }
+                    document.getElementById('form-customer').reset();
+                    window.showToast("Customer added to database!");
+                }
+            } catch (error) { handleWriteError(error); }
         });
 
         document.getElementById('form-team').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const payload = { name: document.getElementById('team-name').value.trim(), createdAt: new Date().toISOString() };
-            if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'team'), payload);
-            else { payload.id = 'team_' + Math.random().toString(36).substr(2, 9); teamData.push(payload); window.renderDatabases(); }
-            document.getElementById('form-team').reset();
-            window.showToast("Sales person added to team!");
+            try {
+                const payload = { name: document.getElementById('team-name').value.trim(), createdAt: new Date().toISOString() };
+                if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'team'), payload);
+                else { payload.id = 'team_' + Math.random().toString(36).substr(2, 9); teamData.push(payload); window.renderDatabases(); }
+                document.getElementById('form-team').reset();
+                window.showToast("Sales person added to team!");
+            } catch (error) { handleWriteError(error); }
         });
 
         document.getElementById('form-sale').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const date = document.getElementById('input-date').value;
-            const customerSelect = document.getElementById('select-customer');
-            const teamSelect = document.getElementById('select-salesperson');
-            
-            const items = [];
-            let totalRevenue = 0, totalCost = 0;
-
-            document.querySelectorAll('.cart-item').forEach(row => {
-                const prodSelect = row.querySelector('.cart-product-select');
-                const productId = prodSelect.value;
-                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
-                const cost = parseFloat(row.querySelector('.item-cost').value) || 0;
-                const price = parseFloat(row.querySelector('.item-price').value) || 0;
+            try {
+                const date = document.getElementById('input-date').value;
+                const customerSelect = document.getElementById('select-customer');
+                const teamSelect = document.getElementById('select-salesperson');
                 
-                if (productId && qty > 0) {
-                    items.push({
-                        productId, productName: prodSelect.options[prodSelect.selectedIndex].text,
-                        quantity: qty, unitCost: cost, unitPrice: price,
-                        totalRevenue: qty * price, totalProfit: (qty * price) - (qty * cost)
-                    });
-                    totalRevenue += (qty * price); totalCost += (qty * cost);
-                }
-            });
+                const items = [];
+                let totalRevenue = 0, totalCost = 0;
 
-            if (items.length === 0) return window.showToast("Please add at least one product", "error");
+                document.querySelectorAll('.cart-item').forEach(row => {
+                    const prodSelect = row.querySelector('.cart-product-select');
+                    const productId = prodSelect.value;
+                    const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                    const cost = parseFloat(row.querySelector('.item-cost').value) || 0;
+                    const price = parseFloat(row.querySelector('.item-price').value) || 0;
+                    
+                    if (productId && qty > 0) {
+                        items.push({
+                            productId, productName: prodSelect.options[prodSelect.selectedIndex].text,
+                            quantity: qty, unitCost: cost, unitPrice: price,
+                            totalRevenue: qty * price, totalProfit: (qty * price) - (qty * cost)
+                        });
+                        totalRevenue += (qty * price); totalCost += (qty * cost);
+                    }
+                });
 
-            const payload = {
-                date: date,
-                customerName: customerSelect.options[customerSelect.selectedIndex].text,
-                customerId: customerSelect.value,
-                salesPersonName: teamSelect.options[teamSelect.selectedIndex].text,
-                salesPersonId: teamSelect.value,
-                items: items,
-                totalRevenue: totalRevenue,
-                totalProfit: totalRevenue - totalCost,
-                createdAt: new Date().toISOString()
-            };
+                if (items.length === 0) return window.showToast("Please add at least one product", "error");
 
-            if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'sales'), payload);
-            else { payload.id = 'sale_' + Math.random().toString(36).substr(2, 9); salesData.push(payload); window.processAndRenderData(); }
-            
-            document.getElementById('form-sale').reset();
-            document.getElementById('cart-container').innerHTML = '';
-            window.addCartRow();
-            document.getElementById('input-date').valueAsDate = new Date();
-            document.getElementById('preview-profit').textContent = "₹0.00";
-            document.getElementById('preview-total').textContent = "₹0.00";
-            
-            window.showToast("Sale recorded successfully!");
-            setTimeout(() => window.switchTab('dashboard'), 500);
+                const payload = {
+                    date: date,
+                    customerName: customerSelect.options[customerSelect.selectedIndex].text,
+                    customerId: customerSelect.value,
+                    salesPersonName: teamSelect.options[teamSelect.selectedIndex].text,
+                    salesPersonId: teamSelect.value,
+                    items: items,
+                    totalRevenue: totalRevenue,
+                    totalProfit: totalRevenue - totalCost,
+                    createdAt: new Date().toISOString()
+                };
+
+                if(db) await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'sales'), payload);
+                else { payload.id = 'sale_' + Math.random().toString(36).substr(2, 9); salesData.push(payload); window.processAndRenderData(); }
+                
+                document.getElementById('form-sale').reset();
+                document.getElementById('cart-container').innerHTML = '';
+                window.addCartRow();
+                document.getElementById('input-date').valueAsDate = new Date();
+                document.getElementById('preview-profit').textContent = "₹0.00";
+                document.getElementById('preview-total').textContent = "₹0.00";
+                
+                window.showToast("Sale recorded successfully!");
+                setTimeout(() => window.switchTab('dashboard'), 500);
+            } catch (error) { handleWriteError(error); }
         });
 
         // Setup & Cloud Connectivity
