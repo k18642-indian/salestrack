@@ -474,11 +474,20 @@
 
         // Check environment / local storage for keys
         const storedKeys = localStorage.getItem('salesProDbKeys');
+        
+        // --- ADD YOUR FIREBASE KEYS HERE TO SYNC ACROSS ALL DEVICES ---
+        // Replace 'null' with your actual keys. 
+        // Example: const hardcodedConfig = { apiKey: "AIza...", projectId: "my-app", appId: "1:123..." };
+        const hardcodedConfig = null; 
+
         if (typeof __firebase_config !== 'undefined') {
             // Environment provided
             initFirebase(JSON.parse(__firebase_config), typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null);
+        } else if (hardcodedConfig) {
+            // Hardcoded keys provided in the file
+            initFirebase(hardcodedConfig, null);
         } else if (storedKeys) {
-            // User provided keys
+            // User provided keys via UI
             initFirebase(JSON.parse(storedKeys), null);
         } else {
             // Offline default
