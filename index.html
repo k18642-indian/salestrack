@@ -477,7 +477,6 @@
         
         // --- ADD YOUR FIREBASE KEYS HERE TO SYNC ACROSS ALL DEVICES ---
         // Replace 'null' with your actual keys. 
-        // Example: const hardcodedConfig = { apiKey: "AIza...", projectId: "my-app", appId: "1:123..." };
         const hardcodedConfig = null; 
 
         if (typeof __firebase_config !== 'undefined') {
@@ -515,7 +514,8 @@
             const collections = ['team', 'products', 'customers', 'sales'];
             
             collections.forEach(colName => {
-                const q = collection(db, 'artifacts', envAppId, 'users', userId, colName);
+                // SAVING TO SHARED WORKSPACE
+                const q = collection(db, 'shared_workspace', 'data', colName);
                 onSnapshot(q, (snapshot) => {
                     state[colName] = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
                     window.refreshAllUI();
@@ -535,7 +535,8 @@
             
             if (userIsReady()) {
                 try {
-                    const docRef = doc(db, 'artifacts', envAppId, 'users', userId, colName, id);
+                    // SAVING TO SHARED WORKSPACE
+                    const docRef = doc(db, 'shared_workspace', 'data', colName, id);
                     await setDoc(docRef, data);
                     window.showToast("Saved successfully!");
                 } catch (e) {
@@ -556,7 +557,8 @@
         async function deleteRecord(colName, id) {
             if (userIsReady()) {
                 try {
-                    await deleteDoc(doc(db, 'artifacts', envAppId, 'users', userId, colName, id));
+                    // DELETING FROM SHARED WORKSPACE
+                    await deleteDoc(doc(db, 'shared_workspace', 'data', colName, id));
                     window.showToast("Deleted successfully!");
                 } catch(e) { window.showToast("Error deleting", true); }
             } else {
