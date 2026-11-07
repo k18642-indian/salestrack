@@ -99,7 +99,7 @@
                 </div>
 
                 <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-6 text-white shadow-md">
                         <div class="flex justify-between items-start">
                             <div>
@@ -118,6 +118,15 @@
                             <div class="bg-white/20 p-2 rounded-lg"><i class="ph ph-trend-up text-2xl"></i></div>
                         </div>
                     </div>
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-6 text-white shadow-md">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-purple-100 text-sm font-medium mb-1">Items Sold</p>
+                                <h3 class="text-3xl font-bold" id="dash-items">0</h3>
+                            </div>
+                            <div class="bg-white/20 p-2 rounded-lg"><i class="ph ph-package text-2xl"></i></div>
+                        </div>
+                    </div>
                     <div class="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
                         <div class="flex justify-between items-start">
                             <div>
@@ -126,6 +135,28 @@
                             </div>
                             <div class="bg-gray-100 text-gray-600 p-2 rounded-lg"><i class="ph ph-shopping-cart text-2xl"></i></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Product Performance Breakdown -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-200 p-4">
+                        <h3 class="text-lg font-bold text-gray-800">Product Performance Breakdown</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
+                                <tr>
+                                    <th class="p-4">Product Name</th>
+                                    <th class="p-4">Quantity Sold</th>
+                                    <th class="p-4">Revenue</th>
+                                    <th class="p-4">Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-product-breakdown" class="divide-y divide-gray-100 text-gray-700">
+                                <!-- Injected via JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -765,26 +796,55 @@
                 return true;
             });
 
-            let tRev = 0, tProf = 0;
+            let tRev = 0, tProf = 0, tItems = 0;
+            const productStats = {};
             
             filtered.forEach(s => {
-                if (fProd !== 'all') {
-                    // Calculate only for specific product
-                    s.items.forEach(i => {
-                        if (i.productId === fProd) {
-                            tRev += (Number(i.qty) * Number(i.price));
-                            tProf += (Number(i.qty) * (Number(i.price) - Number(i.cost)));
-                        }
-                    });
-                } else {
-                    tRev += Number(s.totalRevenue);
-                    tProf += Number(s.totalProfit);
-                }
+                s.items.forEach(i => {
+                    // Skip if filtering by specific product and it doesn't match
+                    if (fProd !== 'all' && i.productId !== fProd) return;
+                    
+                    const qty = Number(i.qty);
+                    const rev = qty * Number(i.price);
+                    const prof = qty * (Number(i.price) - Number(i.cost));
+                    
+                    tRev += rev;
+                    tProf += prof;
+                    tItems += qty;
+                    
+                    // Add to product breakdown
+                    if (!productStats[i.productId]) {
+                        productStats[i.productId] = { qty: 0, rev: 0, prof: 0 };
+                    }
+                    productStats[i.productId].qty += qty;
+                    productStats[i.productId].rev += rev;
+                    productStats[i.productId].prof += prof;
+                });
             });
 
             document.getElementById('dash-revenue').textContent = formatMoney(tRev);
             document.getElementById('dash-profit').textContent = formatMoney(tProf);
             document.getElementById('dash-count').textContent = filtered.length;
+            document.getElementById('dash-items').textContent = tItems;
+
+            // Render Breakdown Table
+            const breakdownTbody = document.getElementById('dash-product-breakdown');
+            if (breakdownTbody) {
+                const breakdownHtml = Object.keys(productStats).map(prodId => {
+                    const prodName = state.products.find(p => p.id === prodId)?.name || 'Unknown Product';
+                    const stats = productStats[prodId];
+                    return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-4 font-medium text-gray-800">${prodName}</td>
+                        <td class="p-4 font-semibold text-gray-900">${stats.qty}</td>
+                        <td class="p-4 text-gray-600">${formatMoney(stats.rev)}</td>
+                        <td class="p-4 font-medium text-emerald-600">${formatMoney(stats.prof)}</td>
+                    </tr>
+                    `;
+                }).join('') || '<tr><td colspan="4" class="p-8 text-center text-gray-500">No products match your current filters.</td></tr>';
+                
+                breakdownTbody.innerHTML = breakdownHtml;
+            }
         };
 
         // --- Form Handlers ---
