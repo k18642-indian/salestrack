@@ -190,7 +190,7 @@
                 </div>
                 
                 <!-- History Filters -->
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Filter by Month & Year</label>
                         <input type="month" id="hist-filter-month" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateHistoryFilters('month')">
@@ -202,6 +202,12 @@
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">End Date</label>
                         <input type="date" id="hist-filter-end" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateHistoryFilters('date')">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Customer</label>
+                        <select id="hist-filter-cust" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateHistoryFilters('cust')">
+                            <option value="all">All Customers</option>
+                        </select>
                     </div>
                 </div>
 
@@ -623,6 +629,7 @@
             // Build options
             const teamOpts = '<option value="">Select Rep...</option>' + state.team.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
             const prodOpts = '<option value="">Select Product...</option>' + state.products.map(p => `<option value="${p.id}" data-cost="${p.cost}" data-price="${p.price}">${p.name}</option>`).join('');
+            const custOpts = '<option value="all">All Customers</option>' + state.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
             // Apply to specific inputs
             const safeSet = (id, html) => { const el = document.getElementById(id); if(el) { const val = el.value; el.innerHTML = html; el.value = val; } };
@@ -635,6 +642,7 @@
             
             safeSet('dash-filter-rep', '<option value="all">All Reps</option>' + state.team.map(t => `<option value="${t.id}">${t.name}</option>`).join(''));
             safeSet('dash-filter-prod', '<option value="all">All Products</option>' + state.products.map(t => `<option value="${t.id}">${t.name}</option>`).join(''));
+            safeSet('hist-filter-cust', custOpts);
 
             // Apply to dynamic cart selects
             document.querySelectorAll('.cart-product-select').forEach(sel => {
@@ -687,11 +695,13 @@
             const fMonth = document.getElementById('hist-filter-month')?.value;
             const fStart = document.getElementById('hist-filter-start')?.value;
             const fEnd = document.getElementById('hist-filter-end')?.value;
+            const fCust = document.getElementById('hist-filter-cust')?.value;
 
             let filtered = state.sales.filter(s => {
                 if (fMonth && !s.date.startsWith(fMonth)) return false;
                 if (fStart && s.date < fStart) return false;
                 if (fEnd && s.date > fEnd) return false;
+                if (fCust && fCust !== 'all' && s.customerId !== fCust) return false;
                 return true;
             });
 
@@ -735,6 +745,7 @@
                 document.getElementById('hist-filter-month').value = '';
                 document.getElementById('hist-filter-start').value = '';
                 document.getElementById('hist-filter-end').value = '';
+                document.getElementById('hist-filter-cust').value = 'all';
             }
             window.renderHistoryTable();
         };
