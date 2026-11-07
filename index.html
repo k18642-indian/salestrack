@@ -75,24 +75,24 @@
                 </div>
 
                 <!-- Filters -->
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Start Date</label>
-                        <input type="date" id="dash-filter-start" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.updateDashboard()">
+                        <input type="date" id="dash-filter-start" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateDashboard()">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">End Date</label>
-                        <input type="date" id="dash-filter-end" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.updateDashboard()">
+                        <input type="date" id="dash-filter-end" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateDashboard()">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Sales Person</label>
-                        <select id="dash-filter-rep" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.updateDashboard()">
+                        <select id="dash-filter-rep" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateDashboard()">
                             <option value="all">All Reps</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Product</label>
-                        <select id="dash-filter-prod" class="w-full border-gray-300 rounded-lg p-2.5 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500" onchange="window.updateDashboard()">
+                        <select id="dash-filter-prod" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateDashboard()">
                             <option value="all">All Products</option>
                         </select>
                     </div>
@@ -184,7 +184,27 @@
 
             <!-- TAB: HISTORY -->
             <div id="tab-history" class="tab-content">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">Sales History</h2>
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">Sales History</h2>
+                    <button onclick="window.updateHistoryFilters('clear')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Clear Filters</button>
+                </div>
+                
+                <!-- History Filters -->
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Filter by Month & Year</label>
+                        <input type="month" id="hist-filter-month" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateHistoryFilters('month')">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Start Date</label>
+                        <input type="date" id="hist-filter-start" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateHistoryFilters('date')">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">End Date</label>
+                        <input type="date" id="hist-filter-end" class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-50 outline-none focus:ring-2 focus:ring-blue-500 h-[46px]" onchange="window.updateHistoryFilters('date')">
+                    </div>
+                </div>
+
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-sm whitespace-nowrap">
@@ -660,8 +680,24 @@
             `}).join('') || '<tr><td colspan="5" class="p-4 text-center text-sm text-gray-500">No customers added.</td></tr>';
 
             // Sales History
-            state.sales.sort((a, b) => new Date(b.date) - new Date(a.date));
-            document.getElementById('history-table').innerHTML = state.sales.map(s => {
+            window.renderHistoryTable();
+        }
+
+        window.renderHistoryTable = () => {
+            const fMonth = document.getElementById('hist-filter-month')?.value;
+            const fStart = document.getElementById('hist-filter-start')?.value;
+            const fEnd = document.getElementById('hist-filter-end')?.value;
+
+            let filtered = state.sales.filter(s => {
+                if (fMonth && !s.date.startsWith(fMonth)) return false;
+                if (fStart && s.date < fStart) return false;
+                if (fEnd && s.date > fEnd) return false;
+                return true;
+            });
+
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            const tableHtml = filtered.map(s => {
                 const cust = state.customers.find(c => c.id === s.customerId)?.name || 'Unknown';
                 const rep = state.team.find(t => t.id === s.repId)?.name || 'Unknown';
                 const itemCount = s.items.reduce((sum, item) => sum + Number(item.qty), 0);
@@ -680,8 +716,28 @@
                         </div>
                     </td>
                 </tr>
-            `}).join('') || '<tr><td colspan="7" class="p-8 text-center text-gray-500 flex flex-col items-center"><i class="ph ph-receipt text-4xl mb-2 text-gray-300"></i> No sales recorded yet.</td></tr>';
-        }
+            `}).join('') || '<tr><td colspan="7" class="p-8 text-center text-gray-500 flex flex-col items-center"><i class="ph ph-receipt text-4xl mb-2 text-gray-300"></i> No sales match your filters.</td></tr>';
+            
+            const tbody = document.getElementById('history-table');
+            if (tbody) tbody.innerHTML = tableHtml;
+        };
+
+        window.updateHistoryFilters = (type) => {
+            if (type === 'month') {
+                // Clear exact dates if using month filter
+                document.getElementById('hist-filter-start').value = '';
+                document.getElementById('hist-filter-end').value = '';
+            } else if (type === 'date') {
+                // Clear month filter if using exact dates
+                document.getElementById('hist-filter-month').value = '';
+            } else if (type === 'clear') {
+                // Clear all filters
+                document.getElementById('hist-filter-month').value = '';
+                document.getElementById('hist-filter-start').value = '';
+                document.getElementById('hist-filter-end').value = '';
+            }
+            window.renderHistoryTable();
+        };
 
         // --- Dashboard Logic ---
         window.updateDashboard = () => {
