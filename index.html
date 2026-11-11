@@ -137,7 +137,7 @@
                 <!-- Product Performance Breakdown -->
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="bg-gray-50 border-b border-gray-200 p-4">
-                        <h3 class="text-lg font-bold text-gray-800">Product Performance Breakdown</h3>
+                        <h3 class="text-lg font-bold text-gray-800">Overall Product Performance</h3>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-sm whitespace-nowrap">
@@ -150,6 +150,29 @@
                                 </tr>
                             </thead>
                             <tbody id="dash-product-breakdown" class="divide-y divide-gray-100 text-gray-700">
+                                <!-- Injected via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Customer & Product Performance Breakdown -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="bg-gray-50 border-b border-gray-200 p-4">
+                        <h3 class="text-lg font-bold text-gray-800">Customer & Product Sales Report</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm whitespace-nowrap">
+                            <thead class="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold">
+                                <tr>
+                                    <th class="p-4">Customer Name</th>
+                                    <th class="p-4">Product Name</th>
+                                    <th class="p-4">Quantity Sold</th>
+                                    <th class="p-4">Revenue</th>
+                                    <th class="p-4">Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="dash-cust-prod-breakdown" class="divide-y divide-gray-100 text-gray-700">
                                 <!-- Injected via JS -->
                             </tbody>
                         </table>
@@ -533,24 +556,18 @@
             }
         }
 
-        // Check environment / local storage for keys
         const storedKeys = localStorage.getItem('salesProDbKeys');
         
         // --- ADD YOUR FIREBASE KEYS HERE TO SYNC ACROSS ALL DEVICES ---
-        // Replace 'null' with your actual keys. 
         const hardcodedConfig = null; 
 
         if (typeof __firebase_config !== 'undefined') {
-            // Environment provided
             initFirebase(JSON.parse(__firebase_config), typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null);
         } else if (hardcodedConfig) {
-            // Hardcoded keys provided in the file
             initFirebase(hardcodedConfig, null);
         } else if (storedKeys) {
-            // User provided keys via UI
             initFirebase(JSON.parse(storedKeys), null);
         } else {
-            // Offline default
             isOffline = true;
             window.updateStatusUI('Offline', 'gray');
         }
@@ -575,7 +592,6 @@
             const collections = ['team', 'products', 'customers', 'sales'];
             
             collections.forEach(colName => {
-                // SAVING TO SHARED WORKSPACE
                 const q = collection(db, 'shared_workspace', 'data', colName);
                 onSnapshot(q, (snapshot) => {
                     state[colName] = snapshot.docs.map(doc => ({id: doc.id, ...doc.data()}));
@@ -597,7 +613,6 @@
             
             if (userIsReady()) {
                 try {
-                    // SAVING TO SHARED WORKSPACE
                     const docRef = doc(db, 'shared_workspace', 'data', colName, id);
                     await setDoc(docRef, data);
                     window.showToast("Saved successfully!");
@@ -610,7 +625,6 @@
                     console.error("Save Error:", e);
                 }
             } else {
-                // Offline Logic
                 const idx = state[colName].findIndex(x => x.id === id);
                 if (idx > -1) state[colName][idx] = {id, ...data};
                 else state[colName].push({id, ...data});
@@ -622,7 +636,6 @@
         async function deleteRecord(colName, id) {
             if (userIsReady()) {
                 try {
-                    // DELETING FROM SHARED WORKSPACE
                     await deleteDoc(doc(db, 'shared_workspace', 'data', colName, id));
                     window.showToast("Deleted successfully!");
                 } catch(e) { window.showToast("Error deleting", true); }
@@ -648,7 +661,6 @@
             const currentCust = custSelect.value;
             let filtered = state.customers;
             
-            // If a rep is selected, filter. Otherwise show all (or none).
             if (repId) {
                 filtered = state.customers.filter(c => c.repId === repId);
             }
@@ -656,7 +668,6 @@
             custSelect.innerHTML = '<option value="">Select Customer...</option>' + 
                 filtered.map(c => `<option value="${c.id}">${c.name} ${c.branch ? `(${c.branch})` : ''}</option>`).join('');
                 
-            // Retain selection if valid, otherwise reset
             if (filtered.some(c => c.id === currentCust)) {
                 custSelect.value = currentCust;
             } else {
@@ -665,25 +676,21 @@
         };
 
         function populateDropdowns() {
-            // Build options
             const teamOpts = '<option value="">Select Rep...</option>' + state.team.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
             const prodOpts = '<option value="">Select Product...</option>' + state.products.map(p => `<option value="${p.id}" data-cost="${p.cost}" data-price="${p.price}">${p.name}</option>`).join('');
             const custOpts = '<option value="all">All Customers</option>' + state.customers.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
-            // Apply to specific inputs
             const safeSet = (id, html) => { const el = document.getElementById(id); if(el) { const val = el.value; el.innerHTML = html; el.value = val; } };
             
             safeSet('sale-rep', teamOpts);
             safeSet('cust-rep', teamOpts);
             
-            // Dynamically populate customer dropdown based on the currently selected rep
             window.filterCustomersByRep();
             
             safeSet('dash-filter-rep', '<option value="all">All Reps</option>' + state.team.map(t => `<option value="${t.id}">${t.name}</option>`).join(''));
             safeSet('dash-filter-prod', '<option value="all">All Products</option>' + state.products.map(t => `<option value="${t.id}">${t.name}</option>`).join(''));
             safeSet('hist-filter-cust', custOpts);
 
-            // Apply to dynamic cart selects
             document.querySelectorAll('.cart-product-select').forEach(sel => {
                 const currentVal = sel.value;
                 sel.innerHTML = prodOpts;
@@ -692,7 +699,6 @@
         }
 
         function renderTables() {
-            // Team
             document.getElementById('team-list').innerHTML = state.team.map(t => `
                 <li class="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg">
                     <span class="font-medium text-gray-800">${t.name}</span>
@@ -703,7 +709,6 @@
                 </li>
             `).join('') || '<li class="p-3 text-sm text-gray-500 text-center">No team members added.</li>';
 
-            // Products
             document.getElementById('products-table').innerHTML = state.products.map(p => `
                 <tr class="hover:bg-gray-50">
                     <td class="p-4 font-medium text-gray-800">${p.name}</td>
@@ -718,7 +723,6 @@
                 </tr>
             `).join('') || '<tr><td colspan="4" class="p-4 text-center text-sm text-gray-500">No products added.</td></tr>';
 
-            // Customers
             document.getElementById('customers-table').innerHTML = state.customers.map(c => {
                 const rep = state.team.find(t => t.id === c.repId)?.name || 'Unassigned';
                 return `
@@ -736,7 +740,6 @@
                 </tr>
             `}).join('') || '<tr><td colspan="5" class="p-4 text-center text-sm text-gray-500">No customers added.</td></tr>';
 
-            // Sales History
             window.renderHistoryTable();
         }
 
@@ -783,14 +786,11 @@
 
         window.updateHistoryFilters = (type) => {
             if (type === 'month') {
-                // Clear exact dates if using month filter
                 document.getElementById('hist-filter-start').value = '';
                 document.getElementById('hist-filter-end').value = '';
             } else if (type === 'date') {
-                // Clear month filter if using exact dates
                 document.getElementById('hist-filter-month').value = '';
             } else if (type === 'clear') {
-                // Clear all filters
                 document.getElementById('hist-filter-month').value = '';
                 document.getElementById('hist-filter-start').value = '';
                 document.getElementById('hist-filter-end').value = '';
@@ -816,10 +816,10 @@
 
             let tRev = 0, tProf = 0, tItems = 0;
             const productStats = {};
+            const custProdStats = {};
             
             filtered.forEach(s => {
                 s.items.forEach(i => {
-                    // Skip if filtering by specific product and it doesn't match
                     if (fProd !== 'all' && i.productId !== fProd) return;
                     
                     const qty = Number(i.qty);
@@ -830,13 +830,22 @@
                     tProf += prof;
                     tItems += qty;
                     
-                    // Add to product breakdown
+                    // Product Performance Data
                     if (!productStats[i.productId]) {
                         productStats[i.productId] = { qty: 0, rev: 0, prof: 0 };
                     }
                     productStats[i.productId].qty += qty;
                     productStats[i.productId].rev += rev;
                     productStats[i.productId].prof += prof;
+
+                    // Customer & Product Sales Report Data
+                    const cpKey = `${s.customerId}_${i.productId}`;
+                    if (!custProdStats[cpKey]) {
+                        custProdStats[cpKey] = { customerId: s.customerId, productId: i.productId, qty: 0, rev: 0, prof: 0 };
+                    }
+                    custProdStats[cpKey].qty += qty;
+                    custProdStats[cpKey].rev += rev;
+                    custProdStats[cpKey].prof += prof;
                 });
             });
 
@@ -845,7 +854,7 @@
             document.getElementById('dash-count').textContent = filtered.length;
             document.getElementById('dash-items').textContent = tItems;
 
-            // Render Breakdown Table
+            // Render Overall Product Breakdown Table
             const breakdownTbody = document.getElementById('dash-product-breakdown');
             if (breakdownTbody) {
                 const breakdownHtml = Object.keys(productStats).map(prodId => {
@@ -862,6 +871,31 @@
                 }).join('') || '<tr><td colspan="4" class="p-8 text-center text-gray-500">No products match your current filters.</td></tr>';
                 
                 breakdownTbody.innerHTML = breakdownHtml;
+            }
+
+            // Render Customer & Product Sales Report Table
+            const custProdTbody = document.getElementById('dash-cust-prod-breakdown');
+            if (custProdTbody) {
+                const cpRows = Object.values(custProdStats).map(stats => {
+                    const custName = state.customers.find(c => c.id === stats.customerId)?.name || 'Unknown Customer';
+                    const prodName = state.products.find(p => p.id === stats.productId)?.name || 'Unknown Product';
+                    return { custName, prodName, ...stats };
+                });
+
+                // Sort by Customer alphabetically, then by Product
+                cpRows.sort((a, b) => a.custName.localeCompare(b.custName) || a.prodName.localeCompare(b.prodName));
+
+                const cpBreakdownHtml = cpRows.map(stats => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-4 font-medium text-gray-800">${stats.custName}</td>
+                        <td class="p-4 font-medium text-gray-700">${stats.prodName}</td>
+                        <td class="p-4 font-semibold text-gray-900">${stats.qty}</td>
+                        <td class="p-4 text-gray-600">${formatMoney(stats.rev)}</td>
+                        <td class="p-4 font-medium text-emerald-600">${formatMoney(stats.prof)}</td>
+                    </tr>
+                `).join('') || '<tr><td colspan="5" class="p-8 text-center text-gray-500">No data matches your current filters.</td></tr>';
+                
+                custProdTbody.innerHTML = cpBreakdownHtml;
             }
         };
 
@@ -1086,7 +1120,6 @@
             document.getElementById('sale-date').value = sale.date;
             document.getElementById('sale-rep').value = sale.repId;
             
-            // Filter the customers for this specific rep before setting the value
             window.filterCustomersByRep();
             document.getElementById('sale-cust').value = sale.customerId;
             
